@@ -45,7 +45,7 @@ public class PedidoController {
                 .map(this::convertToDTO)
                 .toList();
     }
-    @GetMapping("/details")
+    @GetMapping("/detalhes")
     public List<PedidoDetalhadoDTO> findAllDetalhado() {
         return pedidoService
                 .findAll()
