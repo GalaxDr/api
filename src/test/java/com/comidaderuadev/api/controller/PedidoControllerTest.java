@@ -90,8 +90,8 @@ class PedidoControllerTest {
         mockMvc.perform(MockMvcRequestBuilders.get("/pedidos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(pedidos.size())))
-                .andExpect(jsonPath("$.[0].pedidoTipoPagamento", is("PIX")))
-                .andExpect(jsonPath("$.[0].pedidoId", is(1)));
+                .andExpect(jsonPath("$.[0].tipoPagamento", is("PIX")))
+                .andExpect(jsonPath("$.[0].idPedido", is(1)));
 
         //then
         then(pedidoService).should().findAll();

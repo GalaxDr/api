@@ -9,11 +9,14 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Builder;
+import lombok.*;
 
 import java.util.Objects;
 
+@Getter
+@Setter
 @Entity
+@NoArgsConstructor
 @Table(name = "produto")
 public class Produto {
     
@@ -32,8 +35,6 @@ public class Produto {
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
 
-    public Produto() {}
-
     public Produto(String produtoDescricao, double produtoValor, Categoria categoria) {
         this.produtoDescricao = produtoDescricao;
         this.produtoValor = produtoValor;
@@ -45,38 +46,6 @@ public class Produto {
         this.id = id;
         this.produtoDescricao = produtoDescricao;
         this.produtoValor = produtoValor;
-        this.categoria = categoria;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getProdutoDescricao() {
-        return produtoDescricao;
-    }
-
-    public void setProdutoDescricao(String produtoDescricao) {
-        this.produtoDescricao = produtoDescricao;
-    }
-
-    public double getProdutoValor() {
-        return produtoValor;
-    }
-
-    public void setProdutoValor(double produtoValor) {
-        this.produtoValor = produtoValor;
-    }
-
-    public Categoria getCategoria() {
-        return categoria;
-    }
-
-    public void setCategoria(Categoria categoria) {
         this.categoria = categoria;
     }
 

@@ -45,6 +45,14 @@ public class PedidoController {
                 .map(this::convertToDTO)
                 .toList();
     }
+    @GetMapping("/details")
+    public List<PedidoDetalhadoDTO> findAllDetalhado() {
+        return pedidoService
+                .findAll()
+                .stream()
+                .map(this::convertToDetailedDTO)
+                .toList();
+    }
 
     @GetMapping("/tiposPagamentos")
     public List<TipoPagamentoDTO> findAllTiposPagamentos() {

@@ -1,6 +1,6 @@
 package com.comidaderuadev.api.entity.pedido.DTO;
 
-import com.comidaderuadev.api.entity.produto.DTO.ProdutoDTO;
+import com.comidaderuadev.api.entity.DTO.ProdutoDTO;
 
 public class ItemPedidoDTO {
 

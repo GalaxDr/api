@@ -1,20 +1,19 @@
 package com.comidaderuadev.api.controller;
 
+import com.comidaderuadev.api.entity.DTO.CategoriaDTO;
+import com.comidaderuadev.api.entity.mapper.MapStructMapperProdutos;
+import com.comidaderuadev.api.entity.mapper.MapStructMapperProdutosImpl;
 import com.comidaderuadev.api.entity.produto.Categoria;
-import com.comidaderuadev.api.entity.produto.DTO.ProdutoDTO;
+import com.comidaderuadev.api.entity.DTO.ProdutoDTO;
 import com.comidaderuadev.api.entity.produto.Produto;
 import com.comidaderuadev.api.service.CategoriaService;
 import com.comidaderuadev.api.service.ProdutoService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
+import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.Mockito;
 import org.modelmapper.ModelMapper;
@@ -22,21 +21,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-
-import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.then;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.core.Is.is;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProdutoController.class)
 class ProdutoControllerTest {
@@ -48,26 +48,25 @@ class ProdutoControllerTest {
     CategoriaService categoriaService;
 
     @MockBean
-    ModelMapper modelMapper;
+    MapStructMapperProdutos mapStructMapperProdutos;
 
     @Autowired
     MockMvc mockMvc;
 
     @Nested
     public class ProdutoTests {
-        private final String DESC = "ALEMA";
         ProdutoDTO validProdutoDTO;
 
         ProdutoDTO anotherValidProdutoDTO;
-
-        List<Produto> produtos = new ArrayList<>();
 
         Produto produto;
 
         Produto anotherProduto;
 
+        List<Produto> produtos = new ArrayList<>();
+
         @Captor
-        ArgumentCaptor<Produto> captor;
+        ArgumentCaptor<Produto> produtoArgumentCaptor;
 
         @Captor
         ArgumentCaptor<ProdutoDTO> produtoDTOArgumentCaptor;
@@ -75,33 +74,22 @@ class ProdutoControllerTest {
         @Captor
         ArgumentCaptor<String> stringArgumentCaptor;
 
+        ObjectWriter ow;
+
         @BeforeEach
         void setUp() {
-            validProdutoDTO = ProdutoDTO.builder()
-                    .produtoId(1)
-                    .produtoDescricao("PAO")
-                    .categoria(DESC)
-                    .produtoValor(15.0)
-                    .build();
-
-            anotherValidProdutoDTO = ProdutoDTO.builder()
-                    .produtoId(2)
-                    .produtoDescricao("TORTA")
-                    .categoria(DESC)
-                    .produtoValor(15.0)
-                    .build();
 
             produto = Produto.builder()
                     .id(1)
                     .produtoDescricao("PAO")
-                    .categoria(new Categoria(DESC))
+                    .categoria(new Categoria("ALEMA"))
                     .produtoValor(15.0)
                     .build();
 
             anotherProduto = Produto.builder()
                     .id(2)
                     .produtoDescricao("TORTA")
-                    .categoria(new Categoria(DESC))
+                    .categoria(new Categoria("ARABE"))
                     .produtoValor(15.0)
                     .build();
 
@@ -109,37 +97,40 @@ class ProdutoControllerTest {
             produtos.add(anotherProduto);
 
             // Converte de entidade para DTO
-            given(modelMapper.map(captor.capture(), Mockito.eq(ProdutoDTO.class)))
+            given(mapStructMapperProdutos.produtoToProdutoDTO(produtoArgumentCaptor.capture()))
                     .willAnswer( invocationOnMock -> {
                         Produto capturedProduto = invocationOnMock.getArgument(0);
-                        switch (capturedProduto.getId()) {
-                            case 1 -> {
-                                return validProdutoDTO;
-                            }
-                            case 2 -> {
-                                return anotherValidProdutoDTO;
-                            }
-                            default -> throw new RuntimeException("Invalid argument");
-                        }
+                        return ProdutoDTO.builder()
+                                .produtoId(capturedProduto.getId())
+                                .produtoDescricao(capturedProduto.getProdutoDescricao())
+                                .produtoValor(capturedProduto.getProdutoValor())
+                                .categoria(capturedProduto.getCategoria().getDescricao())
+                                .build();
                     });
 
             // Converte de DTO para entidade
-            given(modelMapper.map(produtoDTOArgumentCaptor.capture(), Mockito.eq(Produto.class)))
+            given(mapStructMapperProdutos.produtoDTOToProduto(produtoDTOArgumentCaptor.capture(),
+                    Mockito.eq(categoriaService)))
+
                     .willAnswer( invocationOnMock -> {
-                        ProdutoDTO capturedProduto = invocationOnMock.getArgument(0);
-                        System.out.println(capturedProduto);
-                        switch (capturedProduto.getProdutoId()) {
-                            case 1 -> {
-                                return produto;
-                            }
-                            case 2 -> {
-                                return anotherProduto;
-                            }
-                            default -> throw new RuntimeException("Invalid argument");
-                        }
+                        ProdutoDTO capturedProdutoDTO = invocationOnMock.getArgument(0);
+                        return Produto.builder()
+                                .id(capturedProdutoDTO.getProdutoId())
+                                .produtoDescricao(capturedProdutoDTO.getProdutoDescricao())
+                                .produtoValor(capturedProdutoDTO.getProdutoValor())
+                                .categoria(categoriaService.findByDescricao(capturedProdutoDTO.getCategoria()))
+                                .build();
+                        });
+
+            given(categoriaService.findByDescricao(stringArgumentCaptor.capture()))
+                    .willAnswer(invocationOnMock -> {
+                        String descricao = invocationOnMock.getArgument(0);
+                        return new Categoria(descricao);
                     });
 
-            given(categoriaService.findByDescricao(anyString())).willReturn(new Categoria(DESC));
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(SerializationFeature.WRAP_ROOT_VALUE, false);
+            ow = mapper.writer().withDefaultPrettyPrinter();
         }
 
         @AfterEach
@@ -158,15 +149,16 @@ class ProdutoControllerTest {
                     //then
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andDo(print())
                     .andExpect(jsonPath("$", hasSize(2)))
-                    .andExpect(jsonPath("$.[0].produtoId", is(validProdutoDTO.getProdutoId())))
-                    .andExpect(jsonPath("$.[0].produtoDescricao", is(validProdutoDTO.getProdutoDescricao())))
-                    .andExpect(jsonPath("$.[0].produtoValor", is(validProdutoDTO.getProdutoValor())))
-                    .andExpect(jsonPath("$.[0].categoria", is(validProdutoDTO.getCategoria())))
-                    .andExpect(jsonPath("$.[1].produtoId", is(anotherValidProdutoDTO.getProdutoId())))
-                    .andExpect(jsonPath("$.[1].produtoDescricao", is(anotherValidProdutoDTO.getProdutoDescricao())))
-                    .andExpect(jsonPath("$.[1].produtoValor", is(anotherValidProdutoDTO.getProdutoValor())))
-                    .andExpect(jsonPath("$.[1].categoria", is(anotherValidProdutoDTO.getCategoria())));
+                    .andExpect(jsonPath("$.[0].produtoId", is(produto.getId())))
+                    .andExpect(jsonPath("$.[0].produtoDescricao", is(produto.getProdutoDescricao())))
+                    .andExpect(jsonPath("$.[0].produtoValor", is(produto.getProdutoValor())))
+                    .andExpect(jsonPath("$.[0].categoria", is(produto.getCategoria().getDescricao())))
+                    .andExpect(jsonPath("$.[1].produtoId", is(anotherProduto.getId())))
+                    .andExpect(jsonPath("$.[1].produtoDescricao", is(anotherProduto.getProdutoDescricao())))
+                    .andExpect(jsonPath("$.[1].produtoValor", is(anotherProduto.getProdutoValor())))
+                    .andExpect(jsonPath("$.[1].categoria", is(anotherProduto.getCategoria().getDescricao())));
 
             then(produtoService).should().findAll();
             then(produtoService).shouldHaveNoMoreInteractions();
@@ -183,10 +175,10 @@ class ProdutoControllerTest {
                     //then
                     .andExpect(status().isOk())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$.produtoId", is(validProdutoDTO.getProdutoId())))
-                    .andExpect(jsonPath("$.produtoDescricao", is(validProdutoDTO.getProdutoDescricao())))
-                    .andExpect(jsonPath("$.produtoValor", is(validProdutoDTO.getProdutoValor())))
-                    .andExpect(jsonPath("$.categoria", is(validProdutoDTO.getCategoria())));
+                    .andExpect(jsonPath("$.produtoId", is(produto.getId())))
+                    .andExpect(jsonPath("$.produtoDescricao", is(produto.getProdutoDescricao())))
+                    .andExpect(jsonPath("$.produtoValor", is(produto.getProdutoValor())))
+                    .andExpect(jsonPath("$.categoria", is(produto.getCategoria().getDescricao())));
 
             then(produtoService).should().findById(anyInt());
             then(produtoService).shouldHaveNoMoreInteractions();
@@ -196,10 +188,9 @@ class ProdutoControllerTest {
         @Test
         void addProduto() throws Exception {
             //given
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(SerializationFeature.WRAP_ROOT_VALUE, false);
-            ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
-            String requestJson = ow.writeValueAsString(validProdutoDTO);
+            String requestJson = ow.writeValueAsString(
+                    mapStructMapperProdutos.produtoToProdutoDTO(produto)
+            );
             given(produtoService.add(any(Produto.class))).willReturn(produto);
 
             //when
@@ -208,10 +199,10 @@ class ProdutoControllerTest {
                             .content(requestJson))
                     //then
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.produtoId", is(validProdutoDTO.getProdutoId())))
-                    .andExpect(jsonPath("$.produtoDescricao", is(validProdutoDTO.getProdutoDescricao())))
-                    .andExpect(jsonPath("$.produtoValor", is(validProdutoDTO.getProdutoValor())))
-                    .andExpect(jsonPath("$.categoria", is(validProdutoDTO.getCategoria())));
+                    .andExpect(jsonPath("$.produtoId", is(produto.getId())))
+                    .andExpect(jsonPath("$.produtoDescricao", is(produto.getProdutoDescricao())))
+                    .andExpect(jsonPath("$.produtoValor", is(produto.getProdutoValor())))
+                    .andExpect(jsonPath("$.categoria", is(produto.getCategoria().getDescricao())));
 
             then(produtoService).should().add(any(Produto.class));
             then(produtoService).shouldHaveNoMoreInteractions();
@@ -227,10 +218,90 @@ class ProdutoControllerTest {
             then(produtoService).should().delete(anyInt());
             then(produtoService).shouldHaveNoMoreInteractions();
         }
+
+        @Test
+        void updateProduto() throws Exception {
+            //given
+            Produto expectedProduto = Produto.builder()
+                    .produtoDescricao("VACA ATOLADA")
+                    .produtoValor(15.0)
+                    .categoria(new Categoria("BRASILEIRA"))
+                    .build();
+
+            String requestJson = ow.writeValueAsString(
+                mapStructMapperProdutos.produtoToProdutoDTO(expectedProduto)
+            );
+
+            given(produtoService.update(any(Produto.class)))
+                    .willAnswer(invocationOnMock -> invocationOnMock.getArgument(0));
+
+
+            //when
+            mockMvc.perform(MockMvcRequestBuilders.put("/produtos/" + produto.getId())
+                            .accept(MediaType.APPLICATION_JSON)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.produtoId", is(produto.getId())))
+                    .andExpect(jsonPath("$.produtoDescricao", is(expectedProduto.getProdutoDescricao())))
+                    .andExpect(jsonPath("$.produtoValor", is(expectedProduto.getProdutoValor())))
+                    .andExpect(jsonPath("$.categoria", is(expectedProduto.getCategoria().getDescricao())));
+
+        }
     }
 
     @Nested
     public class CategoriaTests {
+
+        @Captor
+        ArgumentCaptor<Categoria> categoriaArgumentCaptor;
+
+        List<Categoria> categorias = new ArrayList<>();
+
+        Categoria categoria;
+
+        Categoria categoria2;
+
+        @BeforeEach
+        void setUp() {
+            given(mapStructMapperProdutos.categoriaToCategoriaDTO(categoriaArgumentCaptor.capture()))
+                    .willAnswer(
+                    invocationOnMock -> {
+                        Categoria categoria = invocationOnMock.getArgument(0);
+                        return new CategoriaDTO(categoria.getDescricao());
+                    }
+            );
+
+            categoria = new Categoria("ALEMA");
+            categoria2 = new Categoria("BRASILEIRA");
+
+            categorias.add(categoria);
+            categorias.add(categoria2);
+        }
+
+        @AfterEach
+        void tearDown() {
+            reset(categoriaService);
+        }
+
+        @Test
+        void findAll() throws Exception {
+            //Given
+            given(categoriaService.findAll()).willReturn(categorias);
+
+
+            //when
+            mockMvc.perform(MockMvcRequestBuilders.get("/produtos/categorias")
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$.[0].descricao", is(categorias.get(0).getDescricao())))
+                    .andExpect(jsonPath("$.[1].descricao", is(categorias.get(1).getDescricao())));
+
+            //then
+            then(categoriaService).should(times(1)).findAll();
+            then(categoriaService).shouldHaveNoMoreInteractions();
+        }
 
     }
 
